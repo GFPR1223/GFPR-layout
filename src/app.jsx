@@ -81,27 +81,23 @@ function generateOptions(guests, tentSize) {
   const maxRound = tentSize === "20x20" ? 4 : tentSize === "20x40" ? 8 : 16;
   const maxLong  = tentSize === "20x20" ? 6 : tentSize === "20x40" ? 12 : 24;
 
-  // Round: cozy (fewer tables, more chairs) and relaxed (more tables, fewer chairs)
-  const roundCozyN   = Math.min(Math.ceil(guests / 10), maxRound); // max 10/table
-  const roundRelaxN  = Math.min(Math.ceil(guests / 8),  maxRound); // ~8/table
+  const roundCozyN  = Math.min(Math.ceil(guests / 10), maxRound);
+  const roundRelaxN = Math.min(Math.ceil(guests / 8),  maxRound);
+  const longCozyN   = Math.min(Math.ceil(guests / 8),  maxLong);
+  const longRelaxN  = Math.min(Math.ceil(guests / 6),  maxLong);
 
-  // Long: cozy and relaxed
-  const longCozyN    = Math.min(Math.ceil(guests / 8),  maxLong);  // 8/table
-  const longRelaxN   = Math.min(Math.ceil(guests / 6),  maxLong);  // 6/table
-
+  // Always distribute exactly `guests` chairs — never more
   const opts = [
     {
       id: "round-cozy",
       label: "Round · Intimate",
-      sublabel: "Fewer tables, more guests per table",
       tableType: "round",
       numTables: roundCozyN,
-      chairsPerTable: distributeChairs(guests, roundCozyN, 8, 10),
+      chairsPerTable: distributeChairs(guests, roundCozyN, 6, 10),
     },
     {
       id: "round-relaxed",
       label: "Round · Relaxed",
-      sublabel: "More tables, extra elbow room",
       tableType: "round",
       numTables: roundRelaxN,
       chairsPerTable: distributeChairs(guests, roundRelaxN, 6, 8),
@@ -109,22 +105,19 @@ function generateOptions(guests, tentSize) {
     {
       id: "long-cozy",
       label: "Long · Intimate",
-      sublabel: "Banquet style, more guests per table",
       tableType: "long",
       numTables: longCozyN,
-      chairsPerTable: distributeChairs(guests, longCozyN, 7, 8),
+      chairsPerTable: distributeChairs(guests, longCozyN, 6, 8),
     },
     {
       id: "long-relaxed",
       label: "Long · Relaxed",
-      sublabel: "More tables, comfortable spacing",
       tableType: "long",
       numTables: longRelaxN,
-      chairsPerTable: distributeChairs(guests, longRelaxN, 6, 7),
+      chairsPerTable: distributeChairs(guests, longRelaxN, 5, 7),
     },
   ];
 
-  // Dedupe: if cozy === relaxed for either type, merge into one
   return opts.filter((opt, idx, arr) => {
     if (idx === 0) return true;
     const prev = arr[idx - 1];
@@ -215,8 +208,9 @@ function FloorPlan({ tableType, tentSize, numTables, chairsPerTable }) {
   const rowCounts = buildRowCounts(numTables, maxCols);
   const numRows = rowCounts.length;
 
+  // Fixed viewBox per tent size — same scale across all layout options
   const VW = 280;
-  const VH = Math.max(150, numRows * (isRound ? 100 : 62));
+  const VH = tentSize === "20x20" ? 200 : tentSize === "20x40" ? 200 : 340;
   const pad = 24;
   const innerW = VW - pad * 2;
   const innerH = VH - pad * 2;
@@ -224,7 +218,6 @@ function FloorPlan({ tableType, tentSize, numTables, chairsPerTable }) {
 
   const positions = buildPositions(numTables, maxCols, VW, VH, pad);
 
-  // Map each position index back to its row so we know tablesInRow for sizing
   const rowForIdx = [];
   rowCounts.forEach((count, r) => {
     for (let c = 0; c < count; c++) rowForIdx.push(r);
@@ -233,17 +226,14 @@ function FloorPlan({ tableType, tentSize, numTables, chairsPerTable }) {
   const tables = positions.map(({ cx, cy }, i) => {
     const row = rowForIdx[i];
     const tablesInRow = rowCounts[row];
+    const cellW = innerW / tablesInRow;
 
     if (isRound) {
-      const cellW = innerW / tablesInRow;
-      const maxR = Math.min(cellW, cellH) / 2 - 14;
-      const r = Math.max(14, Math.min(26, maxR));
+      const r = 22;
       return <RoundTableSVG key={i} cx={cx} cy={cy} r={r} chairs={chairsPerTable[i]} />;
     } else {
-      const cellW = innerW / tablesInRow;
-      // Hard cap: tables never wider than 60px so they stay consistent across rows
-      const w = Math.min(cellW * 0.60, 60);
-      const h = Math.min(cellH * 0.30, 18);
+      const w = Math.min(cellW * 0.58, 55);
+      const h = 17;
       return <LongTableSVG key={i} x={cx - w/2} y={cy - h/2} w={w} h={h} chairs={chairsPerTable[i]} />;
     }
   });
