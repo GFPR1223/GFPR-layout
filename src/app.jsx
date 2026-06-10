@@ -477,7 +477,7 @@ export default function GFPRPlanner() {
             <div>
               <div style={S.stepLabel}>Step 2 of 5</div>
               <div style={S.h2}>What's the occasion?</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
                 {EVENT_TYPES.map(e => (
                   <div key={e.id} onClick={() => setEventType(e.id)} style={{
                     padding: "14px 16px", borderRadius: 10,
