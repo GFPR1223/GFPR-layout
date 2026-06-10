@@ -1,4 +1,3 @@
-// GFPRPlanner
 import { useState } from "react";
 
 const C = {
@@ -306,6 +305,7 @@ export default function GFPRPlanner() {
   const [tentPref, setTentPref] = useState("pole");
   const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", notes: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const guestNum   = parseInt(guests, 10) || 0;
   const tentSize   = getTentSize(guestNum);
@@ -321,6 +321,38 @@ export default function GFPRPlanner() {
   const setAddonQty = (id, qty) => setSelectedAddons(p =>
     qty === 0 ? (() => { const n = {...p}; delete n[id]; return n; })() : { ...p, [id]: qty }
   );
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const total = chosenOpt ? chosenOpt.chairsPerTable.reduce((a,b)=>a+b,0) : 0;
+    const basePrice = chosenOpt && !is40x60 ? calcPrice(tentSize, chosenOpt.tableType, chosenOpt.numTables, total, tentPref) : null;
+    const grandTotal = basePrice !== null ? basePrice + addonTotal : null;
+    const addonList = Object.entries(selectedAddons).map(([id, qty]) => {
+      const a = ALL_ADDONS.find(x => x.id === id);
+      return a ? `${a.label}${qty > 1 ? ` x${qty}` : ""} ($${a.price * qty})` : "";
+    }).join(", ");
+
+    await fetch("https://formspree.io/f/mkoazjoj", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        date: form.date,
+        notes: form.notes,
+        guests: guestNum,
+        tent_size: tentSize,
+        tent_type: is40x60 ? "40x60 custom" : tentPref === "pole" ? "Pole Tent" : "Frame Tent",
+        event_type: EVENT_TYPES.find(e => e.id === eventType)?.label,
+        layout: chosenOpt ? `${chosenOpt.label} — ${chosenOpt.numTables} tables · ${total} chairs` : "",
+        addons: addonList || "None",
+        estimated_total: grandTotal ? `$${grandTotal.toLocaleString()}` : "Custom quote required",
+      }),
+    });
+    setSubmitting(false);
+    setSubmitted(true);
+  };
 
   const S = {
     wrap:      { fontFamily: "'Inter', system-ui, sans-serif", background: C.cream, minHeight: "100vh", padding: "24px 16px" },
@@ -667,8 +699,8 @@ export default function GFPRPlanner() {
               <div>
                 <button style={S.btnBack} onClick={() => setStep(4)}>← Back</button>
                 <button style={{ ...S.btn, opacity: form.name && form.email ? 1 : 0.4 }}
-                  disabled={!form.name || !form.email} onClick={() => setSubmitted(true)}>
-                  Send My Quote Request ✦
+                  disabled={!form.name || !form.email || submitting} onClick={handleSubmit}>
+                  {submitting ? "Sending..." : "Send My Quote Request ✦"}
                 </button>
               </div>
             </div>
